@@ -1,0 +1,56 @@
+---
+- hosts: all
+
+  tasks:
+    - name: Execute SSH-keygen
+      command: ssh-keygen -y -t rsa -f /root/.ssh/id_rsa -N ''
+      args:
+        creates: /root/.ssh/id_rsa
+      delegate_to: localhost
+
+    - name: Set Authorized key token from file
+      become: true
+      authorized_key:
+        user: root
+        state: present
+        key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+
+---
+- hosts: all
+  user: root
+  become: true
+
+  vars:
+    pack_name: httpd
+    serv_name: httpd
+
+  tasks:
+    - name: Install {{ pack_name }}
+      yum: pkg={{ pack_name }} state=installed
+    - name: Starte {{ serv_name }}
+      service: name={{ serv_name }} state=started
+
+---
+ hosts: all 
+  tasks: 
+  - name: Print the ansible_os_family value 
+    debug: 
+      msg: '{{ ansible_os_family }}' 
+  - name: Ensure the httpd package is updated 
+    yum: 
+      name: httpd 
+      state: latest 
+    become: True 
+    when: ansible_os_family == 'RedHat' 
+  - name: Ensure the apache2 package is updated 
+    apt: 
+      name: apache2 
+      state: latest 
+    become: True 
+    when: ansible_os_family == 'Debian'
+  - name: start service
+    service: name=httpd state=started
+    register: output_variable
+    become: yes
+  - debug:
+      msg: '{{ output_variable.state }}'
